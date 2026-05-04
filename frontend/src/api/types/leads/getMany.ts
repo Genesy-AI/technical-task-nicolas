@@ -1,3 +1,5 @@
+export type PhoneEnrichmentStatus = 'running' | 'found' | 'not_found' | 'failed'
+
 export type LeadsGetManyInput = undefined
 
 export type LeadsGetManyOutput = {
@@ -12,4 +14,8 @@ export type LeadsGetManyOutput = {
   companyName: string | null
   message: string | null
   emailVerified: boolean | null
+  companyWebsite: string | null
+  phone: string | null
+  phoneEnrichmentStatus: PhoneEnrichmentStatus | null
+  phoneEnrichmentProvider: string | null
 }[]
