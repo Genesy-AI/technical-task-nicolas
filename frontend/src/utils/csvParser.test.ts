@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCsv, isValidEmail } from './csvParser'
+import { parseCsv, isValidEmail, isValidCountryCode } from './csvParser'
 
 describe('isValidEmail', () => {
   it('should return true for valid email addresses', () => {
@@ -17,6 +17,29 @@ describe('isValidEmail', () => {
     expect(isValidEmail('test.example.com')).toBe(false)
     expect(isValidEmail('test@.com')).toBe(false)
     expect(isValidEmail('test@example')).toBe(false)
+  })
+})
+
+describe('isValidCountryCode', () => {
+  it('should return true for valid 2-letter codes', () => {
+    expect(isValidCountryCode('US')).toBe(true)
+    expect(isValidCountryCode('GB')).toBe(true)
+    expect(isValidCountryCode('KI')).toBe(true)
+  })
+
+  it('should return false for codes with more than 2 letters', () => {
+    expect(isValidCountryCode('XXX')).toBe(false)
+    expect(isValidCountryCode('USA')).toBe(false)
+  })
+
+  it('should return false for numeric or mixed codes', () => {
+    expect(isValidCountryCode('12')).toBe(false)
+    expect(isValidCountryCode('U1')).toBe(false)
+  })
+
+  it('should be case-insensitive', () => {
+    expect(isValidCountryCode('us')).toBe(true)
+    expect(isValidCountryCode('Gb')).toBe(true)
   })
 })
 
@@ -180,6 +203,24 @@ Bob,Johnson,bob@example.com`
     expect(result[0].errors).toContain('First name is required')
     expect(result[0].errors).toContain('Last name is required')
     expect(result[0].errors).toContain('Invalid email format')
+  })
+
+  it('should reject leads with invalid country code format', () => {
+    const csv = `firstName,lastName,email,countryCode
+John,Doe,john@example.com,XXX
+Jane,Smith,jane@example.com,12
+Bob,Jones,bob@example.com,US
+Amy,Lee,amy@example.com,`
+
+    const result = parseCsv(csv)
+
+    expect(result).toHaveLength(4)
+    expect(result[0].isValid).toBe(false)
+    expect(result[0].errors).toContain('Invalid country code (must be a 2-letter ISO code, e.g. US, GB)')
+    expect(result[1].isValid).toBe(false)
+    expect(result[1].errors).toContain('Invalid country code (must be a 2-letter ISO code, e.g. US, GB)')
+    expect(result[2].isValid).toBe(true)
+    expect(result[3].isValid).toBe(true)
   })
 
   it('should handle extra columns not in header mapping', () => {

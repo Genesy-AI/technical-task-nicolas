@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express'
 import { Connection, Client } from '@temporalio/client'
 import { verifyEmailWorkflow } from './workflows'
 import { generateMessageFromTemplate } from './utils/messageGenerator'
+import { isValidCountryCode } from './utils/validators'
 import { runTemporalWorker } from './worker'
 const prisma = new PrismaClient()
 const app = express()
@@ -189,7 +190,8 @@ app.post('/leads/bulk', async (req: Request, res: Response) => {
         typeof lead.lastName === 'string' &&
         lead.lastName.trim() &&
         typeof lead.email === 'string' &&
-        lead.email.trim()
+        lead.email.trim() &&
+        (!lead.countryCode || isValidCountryCode(lead.countryCode.trim()))
       )
     })
 

@@ -17,6 +17,10 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email)
 }
 
+export const isValidCountryCode = (code: string): boolean => {
+  return /^[A-Z]{2}$/i.test(code)
+}
+
 export const parseCsv = (content: string): CsvLead[] => {
   if (!content?.trim()) {
     throw new Error('CSV content cannot be empty')
@@ -87,6 +91,9 @@ export const parseCsv = (content: string): CsvLead[] => {
       errors.push('Email is required')
     } else if (!isValidEmail(lead.email)) {
       errors.push('Invalid email format')
+    }
+    if (lead.countryCode && !isValidCountryCode(lead.countryCode)) {
+      errors.push('Invalid country code (must be a 2-letter ISO code, e.g. US, GB)')
     }
 
     data.push({
