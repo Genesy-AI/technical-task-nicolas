@@ -8,7 +8,20 @@ import { Connection, Client } from '@temporalio/client'
 import { verifyEmailWorkflow } from './workflows'
 import { generateMessageFromTemplate } from './utils/messageGenerator'
 import { runTemporalWorker } from './worker'
+import { LeadsService, NoLeadsFoundError } from './domain/leadsService'
 const prisma = new PrismaClient()
+
+let temporalClientPromise: Promise<Client> | null = null
+function getTemporalClient(): Promise<Client> {
+  if (!temporalClientPromise) {
+    temporalClientPromise = Connection.connect({ address: 'localhost:7233' }).then(
+      (connection) => new Client({ connection, namespace: 'default' })
+    )
+  }
+  return temporalClientPromise
+}
+
+const leadsService = new LeadsService(prisma, getTemporalClient)
 const app = express()
 app.use(express.json())
 
@@ -314,6 +327,29 @@ app.post('/leads/verify-emails', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error verifying emails:', error)
     res.status(500).json({ error: 'Failed to verify emails' })
+  }
+})
+
+app.post('/leads/enrich-phones', async (req: Request, res: Response) => {
+  if (!req.body || typeof req.body !== 'object') {
+    return res.status(400).json({ error: 'Request body is required and must be valid JSON' })
+  }
+
+  const { leadIds } = req.body as { leadIds?: number[] }
+
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    return res.status(400).json({ error: 'leadIds must be a non-empty array' })
+  }
+
+  try {
+    const result = await leadsService.enrichPhones(leadIds)
+    res.json({ success: true, ...result })
+  } catch (error) {
+    if (error instanceof NoLeadsFoundError) {
+      return res.status(404).json({ error: error.message })
+    }
+    console.error('Error enriching phones:', error)
+    res.status(500).json({ error: 'Failed to enrich phones' })
   }
 })
 
