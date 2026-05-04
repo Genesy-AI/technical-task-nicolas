@@ -4,6 +4,22 @@ import toast from 'react-hot-toast'
 import { api } from '../api'
 import { MessageTemplateModal } from './MessageTemplateModal'
 import { CsvImportModal } from './CsvImportModal'
+import type { LeadsGetManyOutput, PhoneEnrichmentStatus } from '../api/types/leads/getMany'
+
+const phoneStatusEmoji = (status: PhoneEnrichmentStatus | null | undefined): string => {
+  switch (status) {
+    case 'running':
+      return '⏳'
+    case 'found':
+      return '✅'
+    case 'not_found':
+      return '❌'
+    case 'failed':
+      return '⚠️'
+    default:
+      return '❓'
+  }
+}
 
 export const LeadsList: FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([])
@@ -16,6 +32,11 @@ export const LeadsList: FC = () => {
     queryKey: ['leads', 'getMany'],
     queryFn: async () => api.leads.getMany(),
     retry: false,
+    refetchInterval: (query) => {
+      const data = query.state.data as LeadsGetManyOutput | undefined
+      const anyRunning = data?.some((l) => l.phoneEnrichmentStatus === 'running')
+      return anyRunning ? 2000 : false
+    },
   })
   
 
@@ -49,6 +70,32 @@ export const LeadsList: FC = () => {
     onError: () => {
       toast.error('Failed to verify emails. Please try again.')
     }
+  })
+
+  const enrichPhonesMutation = useMutation({
+    mutationFn: async (ids: number[]) => api.leads.enrichPhones({ leadIds: ids }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['leads', 'getMany'] })
+      setIsEnrichDropdownOpen(false)
+      if (data.enqueuedCount > 0) {
+        toast.success(
+          data.enqueuedCount === 1
+            ? `Enriching phone for ${data.enqueuedCount} lead…`
+            : `Enriching phones for ${data.enqueuedCount} leads…`
+        )
+      }
+      const alreadyRunning = data.skipped.filter((s) => s.reason === 'already_running')
+      if (alreadyRunning.length > 0) {
+        toast(
+          alreadyRunning.length === 1
+            ? `${alreadyRunning.length} lead is already being enriched`
+            : `${alreadyRunning.length} leads are already being enriched`
+        )
+      }
+    },
+    onError: () => {
+      toast.error('Failed to enrich phones. Please try again.')
+    },
   })
 
   const handleSelectAll = (checked: boolean) => {
@@ -159,6 +206,17 @@ export const LeadsList: FC = () => {
                       </div>
                     </button>
                     <button
+                      onClick={() => enrichPhonesMutation.mutate(selectedLeads)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <svg className="mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        Enrich Phone
+                      </div>
+                    </button>
+                    <button
                       onClick={() => {
                         toast.error('Gender guessing feature is not yet implemented')
                         setIsEnrichDropdownOpen(false)
@@ -226,6 +284,9 @@ export const LeadsList: FC = () => {
                   Email
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Phone
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Job Title
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
@@ -265,6 +326,9 @@ export const LeadsList: FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.email || '-'} {lead.emailVerified === null ? '❓' : lead.emailVerified ? '✅' : '❌'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.phone || '-'} {phoneStatusEmoji(lead.phoneEnrichmentStatus)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{lead.jobTitle || '-'}</div>
