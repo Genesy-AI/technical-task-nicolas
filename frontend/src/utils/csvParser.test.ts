@@ -223,4 +223,55 @@ Jane,Johnson,jane@example.com`
     expect(result[0].email).toBe('john@example.com')
     expect(result[0].isValid).toBe(true)
   })
+
+  describe('companyWebsite column', () => {
+    it('should parse companyWebsite when header is "companyWebsite"', () => {
+      const csv = `firstName,lastName,email,companyWebsite
+John,Doe,john@example.com,example.com`
+
+      const result = parseCsv(csv)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].companyWebsite).toBe('example.com')
+      expect(result[0].isValid).toBe(true)
+    })
+
+    it('should normalize "Company Website" header (with space)', () => {
+      const csv = `firstName,lastName,email,Company Website
+John,Doe,john@example.com,example.com`
+
+      const result = parseCsv(csv)
+
+      expect(result[0].companyWebsite).toBe('example.com')
+    })
+
+    it('should normalize "company_website" header (snake_case)', () => {
+      const csv = `firstName,lastName,email,company_website
+John,Doe,john@example.com,example.com`
+
+      const result = parseCsv(csv)
+
+      expect(result[0].companyWebsite).toBe('example.com')
+    })
+
+    it('should leave companyWebsite undefined when the column is absent', () => {
+      const csv = `firstName,lastName,email
+John,Doe,john@example.com`
+
+      const result = parseCsv(csv)
+
+      expect(result[0].companyWebsite).toBeUndefined()
+      expect(result[0].isValid).toBe(true)
+    })
+
+    it('should leave companyWebsite undefined when the cell is empty', () => {
+      const csv = `firstName,lastName,email,companyWebsite
+John,Doe,john@example.com,`
+
+      const result = parseCsv(csv)
+
+      expect(result[0].companyWebsite).toBeUndefined()
+      expect(result[0].isValid).toBe(true)
+    })
+  })
 })
